@@ -8,8 +8,10 @@ env/
 venv/
 .venv/
 *.egg-info/
+*.egg
 dist/
 build/
+.eggs/
 
 # IDE
 .idea/
