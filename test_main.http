@@ -1,11 +1,53 @@
-# Test your FastAPI endpoints
-
-GET http://127.0.0.1:8000/
+### 角色列表
+GET http://127.0.0.1:8000/api/roles
 Accept: application/json
 
-###
+### 创建角色
+POST http://127.0.0.1:8000/api/roles
+Content-Type: application/json
 
-GET http://127.0.0.1:8000/hello/User
+{
+  "name": "职场助理",
+  "icon": "💼",
+  "description": "帮助处理工作相关事务",
+  "color": 4280391411,
+  "system_prompt": "你是一个专业的职场助理"
+}
+
+### 日程列表
+GET http://127.0.0.1:8000/api/calendar/events
 Accept: application/json
 
-###
+### 创建日程
+POST http://127.0.0.1:8000/api/calendar/events
+Content-Type: application/json
+
+{
+  "title": "团队周会",
+  "date": "2026-04-23",
+  "time": "10:00",
+  "end_time": "11:00",
+  "reminder_minutes": 15
+}
+
+### 记忆列表
+GET http://127.0.0.1:8000/api/memories
+Accept: application/json
+
+### 创建记忆
+POST http://127.0.0.1:8000/api/memories
+Content-Type: application/json
+
+{
+  "type": "semantic",
+  "content": "用户对海鲜过敏",
+  "tags": ["健康", "饮食"]
+}
+
+### 群组列表
+GET http://127.0.0.1:8000/api/groups
+Accept: application/json
+
+### 用户配置
+GET http://127.0.0.1:8000/api/users/profile
+Accept: application/json

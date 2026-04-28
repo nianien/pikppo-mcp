@@ -1,13 +1,20 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
-
-app = FastAPI()
-
-
-@app.get("/")
-async def root():
-    return {"message": "Hello World"}
+from app.database import init_db, close_db
+from app.routers import roles, calendar, memories, groups, users
 
 
-@app.get("/hello/{name}")
-async def say_hello(name: str):
-    return {"message": f"Hello {name}"}
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await init_db()
+    yield
+    await close_db()
+
+
+app = FastAPI(title="pikppo-api", lifespan=lifespan)
+
+app.include_router(roles.router)
+app.include_router(calendar.router)
+app.include_router(memories.router)
+app.include_router(groups.router)
+app.include_router(users.router)
