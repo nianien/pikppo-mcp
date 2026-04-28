@@ -51,10 +51,12 @@ pikppo-api/
 │           ├── memory_service.py
 │           ├── group_service.py
 │           └── user_service.py
-└── tests/                       # 测试代码
-    ├── __init__.py
-    ├── conftest.py              # pytest fixtures
-    └── test_*.py
+├── tests/                       # 测试代码
+│   ├── __init__.py
+│   ├── conftest.py              # pytest fixtures
+│   └── test_*.py
+└── data/                        # 运行时数据（git 忽略 *.db）
+    └── pikppo.db
 ```
 
 ## 数据模型

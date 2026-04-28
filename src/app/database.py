@@ -1,7 +1,8 @@
 import aiosqlite
 from pathlib import Path
 
-DB_PATH = Path(__file__).parent.parent / "pikppo.db"
+_PROJECT_ROOT = Path(__file__).parent.parent.parent
+DB_PATH = _PROJECT_ROOT / "data" / "pikppo.db"
 
 _db: aiosqlite.Connection | None = None
 
@@ -24,6 +25,7 @@ async def close_db():
 
 
 async def init_db():
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     db = await get_db()
     await db.executescript("""
         CREATE TABLE IF NOT EXISTS roles (

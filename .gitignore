@@ -23,6 +23,11 @@ build/
 .env
 .env.*
 
+# Data
+*.db
+*.db-wal
+*.db-shm
+
 # OS
 .DS_Store
 Thumbs.db
