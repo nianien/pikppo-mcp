@@ -1,11 +1,10 @@
 [project]
-name = "pikppo-api"
+name = "pikppo-mcp"
 version = "0.1.0"
-description = "pikppo 多角色 AI 私人管家应用后端 API 服务"
+description = "pikppo 私人管家 MCP 服务"
 requires-python = ">=3.11"
 dependencies = [
-    "fastapi>=0.115.0",
-    "uvicorn>=0.30.0",
+    "mcp>=1.0.0",
     "aiosqlite>=0.20.0",
 ]
 
@@ -13,12 +12,11 @@ dependencies = [
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.24",
-    "httpx>=0.27",
 ]
 
 [build-system]
 requires = ["hatchling"]
-build-backend = "hatchling.backends"
+build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/app"]

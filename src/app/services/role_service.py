@@ -7,7 +7,7 @@ async def list_roles() -> list[Role]:
     db = await get_db()
     cursor = await db.execute("SELECT * FROM roles ORDER BY is_default DESC, created_at ASC")
     rows = await cursor.fetchall()
-    return [Role(**dict(r), is_default=bool(r["is_default"])) for r in rows]
+    return [Role(**{**dict(r), "is_default": bool(r["is_default"])}) for r in rows]
 
 
 async def get_role(role_id: str) -> Role | None:
@@ -16,7 +16,7 @@ async def get_role(role_id: str) -> Role | None:
     row = await cursor.fetchone()
     if not row:
         return None
-    return Role(**dict(row), is_default=bool(row["is_default"]))
+    return Role(**{**dict(row), "is_default": bool(row["is_default"])})
 
 
 async def create_role(data: RoleCreate) -> Role:
