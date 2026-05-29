@@ -23,7 +23,7 @@ pikppo 的 MCP 服务，为 pikppo Flutter 客户端提供工具调用能力。
 
 ```
 pikppo-api/
-├── CLAUDE.md
+├── AGENTS.md
 ├── pyproject.toml               # 项目元数据与依赖
 ├── .gitignore
 ├── src/                         # 正式代码
@@ -165,7 +165,7 @@ python -m app
 
 ## 客户端配置
 
-在 MCP 客户端（如 Claude Desktop）中添加：
+在 MCP 客户端（如 Codex Desktop）中添加：
 
 ```json
 {

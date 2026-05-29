@@ -3,11 +3,17 @@ from app.database import get_db
 from app.models.group import Group, GroupCreate, GroupUpdate
 
 
+def _row_to_group(row) -> Group:
+    d = dict(row)
+    d["role_ids"] = json.loads(d["role_ids"])
+    return Group(**d)
+
+
 async def list_groups() -> list[Group]:
     db = await get_db()
     cursor = await db.execute("SELECT * FROM groups")
     rows = await cursor.fetchall()
-    return [Group(**dict(r), role_ids=json.loads(r["role_ids"])) for r in rows]
+    return [_row_to_group(r) for r in rows]
 
 
 async def get_group(group_id: str) -> Group | None:
@@ -16,7 +22,7 @@ async def get_group(group_id: str) -> Group | None:
     row = await cursor.fetchone()
     if not row:
         return None
-    return Group(**dict(row), role_ids=json.loads(row["role_ids"]))
+    return _row_to_group(row)
 
 
 async def create_group(data: GroupCreate) -> Group:
