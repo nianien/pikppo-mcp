@@ -28,7 +28,7 @@ _extra_hosts = [h.strip() for h in os.environ.get("MCP_ALLOWED_HOSTS", "").split
 
 mcp = FastMCP(
     "pikppo",
-    instructions="pikppo 私人管家 MCP 服务，提供角色、日程、记忆、群组、用户配置管理能力",
+    instructions="pikppo 外部工具 MCP 服务，提供日程等外部能力的工具调用",
     lifespan=app_lifespan,
     transport_security=TransportSecuritySettings(
         allowed_hosts=_DEFAULT_ALLOWED_HOSTS + _extra_hosts,
@@ -37,8 +37,4 @@ mcp = FastMCP(
 )
 
 # register tools
-import app.tools.roles  # noqa: F401, E402
 import app.tools.calendar  # noqa: F401, E402
-import app.tools.memories  # noqa: F401, E402
-import app.tools.groups  # noqa: F401, E402
-import app.tools.users  # noqa: F401, E402
