@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 # pikppo-mcp 一键启动脚本
 # 用法:
-#   ./start.sh                  # 启动 server (streamable-http, 默认 :8000)
-#   ./start.sh --inspect        # 同时启动 MCP Inspector 并自动预填连接参数
-#   ./start.sh --transport sse  # 切换 transport (stdio | sse | streamable-http)
-#   ./start.sh --port 9000      # 自定义端口
-#   ./start.sh --no-open        # --inspect 时不自动打开浏览器
+#   scripts/start.sh                  # 启动 server (streamable-http, 默认 :8000)
+#   scripts/start.sh --inspect        # 同时启动 MCP Inspector 并自动预填连接参数
+#   scripts/start.sh --transport sse  # 切换 transport (stdio | sse | streamable-http)
+#   scripts/start.sh --port 9000      # 自定义端口
+#   scripts/start.sh --no-open        # --inspect 时不自动打开浏览器
 
 set -euo pipefail
 
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."
 
 TRANSPORT="streamable-http"
 HOST="127.0.0.1"
@@ -32,12 +32,10 @@ done
 
 PYTHON="${PYTHON:-python3}"
 
-if ! "$PYTHON" -c "import mcp, aiosqlite" 2>/dev/null; then
+if ! "$PYTHON" -c "import mcp, asyncpg" 2>/dev/null; then
   echo "[setup] 安装依赖..."
   "$PYTHON" -m pip install -e ".[dev]"
 fi
-
-mkdir -p data
 
 SERVER_PID=""
 INSPECTOR_PID=""
