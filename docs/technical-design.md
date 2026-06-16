@@ -36,11 +36,11 @@ MCP 客户端（Flutter / 其它）
 | 层 | 职责 | 约束 |
 |----|------|------|
 | `tools/` | 定义 MCP 工具签名与 docstring，做参数接收，调用 service | 不写业务逻辑、不直接访问数据库 |
-| `services/` | 业务逻辑，编排，委托 storage | 不感知具体存储实现 |
+| `services/` | 业务逻辑，编排；委托 storage 或直连外部 API | 不感知具体存储实现 |
 | `storage/` | 数据访问，模型↔数据库类型互转，连接池管理 | 唯一接触 SQL 的层 |
 | `models/` | Pydantic v2 数据模型，定义对外契约 | 纯数据结构 |
 
-新增一类工具时，在 `tools/`、`services/`、`models/` 各加一个模块即可，领域之间互不影响。
+新增一类工具时，在 `tools/`、`services/`（+ 需持久化时加 `models/` 与 storage 表）各加一个模块即可，领域之间互不影响。service 的数据来源不限于本地存储：日历委托 storage 落 Postgres，汇率直连外部 API 不落库——这种差异被 service 层封装，对 tools 层透明。
 
 ## 3. 协议与传输
 
@@ -131,9 +131,11 @@ mcp.pikppo.com（CNAME → ghs.googlehosted.com）
 
 ## 7. 扩展路线
 
-当前已实现：**日程管理（calendar）**——`list / get / create / update / delete` 五个工具。
+当前已实现：
+- **日程管理（calendar）**——`list / get / create / update / delete` 五个工具，持久化到 Postgres。
+- **汇率查询（exchange）**——`convert_currency`（按实时汇率换算金额）/ `list_exchange_rates`（某基准币种的汇率表）；数据源 open.er-api.com（免费无需 key），实时只读不落库，进程内 TTL 缓存到数据源声明的下次更新时刻（同一对话内同 base 多次换算只打一次外部 API；stateless 冷启动丢缓存则回落到 API 调用）。
 
-按产品「应用市场」清单逐步引入：邮件、翻译、待办清单、联网搜索、地图导航、天气。每类工具是 `tools/` + `services/` + `models/` 的一个新模块，复用同一套认证、传输、存储与部署基建，互不干扰。
+按产品「应用市场」清单逐步引入：邮件、翻译、待办清单、联网搜索、地图导航、天气。每类工具是 `tools/` + `services/`（+ 需持久化时加 `models/` 与 storage 表）的一个新模块，复用同一套认证、传输、存储与部署基建，互不干扰。
 
 ## 8. 刻意不做的事
 

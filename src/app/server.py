@@ -31,3 +31,4 @@ mcp = FastMCP(
 
 # register tools
 import app.tools.calendar  # noqa: F401, E402
+import app.tools.exchange  # noqa: F401, E402

@@ -59,17 +59,21 @@ pikppo-mcp/
 │       │   └── postgres.py      # Neon Postgres（asyncpg 连接池）
 │       ├── models/              # Pydantic 数据模型（仅外部工具相关）
 │       │   ├── __init__.py
-│       │   └── calendar_event.py
+│       │   ├── calendar_event.py
+│       │   └── exchange_rate.py
 │       ├── tools/               # MCP 工具定义（按工具拆分）
 │       │   ├── __init__.py
-│       │   └── calendar.py
-│       └── services/            # 业务逻辑层（委托 storage 后端）
+│       │   ├── calendar.py
+│       │   └── exchange.py
+│       └── services/            # 业务逻辑层（日历委托 storage；汇率直连外部 API）
 │           ├── __init__.py
-│           └── calendar_service.py
+│           ├── calendar_service.py
+│           └── exchange_service.py
 └── tests/
     ├── __init__.py
     ├── conftest.py              # 测试连同实例下的 pikppo_test 库，每测试 TRUNCATE
-    └── test_calendar.py
+    ├── test_calendar.py
+    └── test_exchange.py         # mock 数据源，不依赖外部网络
 ```
 
 ## 环境变量
@@ -92,6 +96,15 @@ pikppo-mcp/
 | `create_calendar_event` | 创建事件 |
 | `update_calendar_event` | 更新事件 |
 | `delete_calendar_event` | 删除事件 |
+
+### 汇率查询（exchange）
+
+实时只读，数据源 open.er-api.com（免费无需 key），进程内 TTL 缓存到数据源声明的下次更新时刻；不落库。
+
+| 工具 | 说明 |
+|------|------|
+| `convert_currency` | 按实时汇率换算金额（from / to / amount，直接返回换算结果） |
+| `list_exchange_rates` | 查询某基准币种对一篮子货币的汇率表 |
 
 ### 规划中
 
