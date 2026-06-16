@@ -29,7 +29,7 @@ pikppo 的 **外部工具** MCP 服务，通过 MCP 协议向 pikppo Flutter 客
 - **语言**: Python 3.11+
 - **协议**: MCP（Model Context Protocol）
 - **框架**: mcp Python SDK（FastMCP）
-- **数据库**: SQLite（aiosqlite 异步访问）— 仅用于外部工具自身需要持久化的数据（如日历事件）
+- **数据库**: Neon Postgres（serverless，asyncpg 异步访问）— 仅用于外部工具自身需要持久化的数据（如日历事件）；连接串放 `.env` 的 `DB_URL`，测试用同实例下的独立 `pikppo_test` 库
 - **数据验证**: Pydantic v2
 
 ## 项目结构
@@ -38,29 +38,48 @@ pikppo 的 **外部工具** MCP 服务，通过 MCP 协议向 pikppo Flutter 客
 pikppo-mcp/
 ├── CLAUDE.md
 ├── pyproject.toml
-├── start.sh                     # 一键启动脚本
+├── uv.lock                      # 依赖锁定（升级依赖：uv lock --upgrade，需提交）
+├── Dockerfile                   # 云端部署镜像
+├── scripts/
+│   ├── start.sh                 # 一键启动脚本
+│   ├── init-db.py               # 初始化数据库 schema（部署前对目标库执行一次，幂等）
+│   ├── deploy-gcp.sh            # 一键部署：Cloud Build → Cloud Run → domain mapping 绑定域名
+│   └── cloudbuild.yaml          # Cloud Build 构建配置
+├── .env                         # DB_URL 等敏感配置（git 忽略）
+├── docs/
+│   └── db-decision.md           # 数据库选型决策（Neon Postgres）
 ├── src/
 │   └── app/
-│       ├── __init__.py
-│       ├── __main__.py          # python -m app 入口
+│       ├── __init__.py          # 加载 .env
+│       ├── __main__.py          # python -m app 入口（读 $PORT，挂认证中间件）
 │       ├── server.py            # FastMCP 实例、lifespan、Host 白名单
-│       ├── database.py          # SQLite 连接与初始化
+│       ├── auth.py              # Bearer token 认证中间件（MCP_AUTH_TOKEN）
+│       ├── storage/             # 数据访问层
+│       │   ├── __init__.py
+│       │   └── postgres.py      # Neon Postgres（asyncpg 连接池）
 │       ├── models/              # Pydantic 数据模型（仅外部工具相关）
 │       │   ├── __init__.py
 │       │   └── calendar_event.py
 │       ├── tools/               # MCP 工具定义（按工具拆分）
 │       │   ├── __init__.py
 │       │   └── calendar.py
-│       └── services/            # 业务逻辑层
+│       └── services/            # 业务逻辑层（委托 storage 后端）
 │           ├── __init__.py
 │           └── calendar_service.py
-├── tests/
-│   ├── __init__.py
-│   ├── conftest.py
-│   └── test_calendar.py
-└── data/                        # 运行时数据（git 忽略 *.db）
-    └── pikppo.db
+└── tests/
+    ├── __init__.py
+    ├── conftest.py              # 测试连同实例下的 pikppo_test 库，每测试 TRUNCATE
+    └── test_calendar.py
 ```
+
+## 环境变量
+
+| 变量 | 说明 |
+|------|------|
+| `DB_URL` | Neon Postgres 连接串（放 `.env`，必需）；`channel_binding` 参数会被自动剥离（asyncpg 不支持） |
+| `MCP_AUTH_TOKEN` | 设置后启用 Bearer token 认证（HTTP 传输），公网部署必须设置 |
+| `MCP_ALLOWED_HOSTS` | 追加 Host 白名单（逗号分隔）；设为 `*` 关闭 DNS rebinding 防护（云端反代场景，需配合 token 认证） |
+| `PORT` | HTTP 监听端口（Cloud Run 等平台注入），默认 8000 |
 
 ## MCP 工具清单
 
@@ -104,9 +123,10 @@ pikppo-mcp/
 ## 开发规范
 
 - **边界优先**：新增任何工具前，先按上文「判断原则」确认是否属于 pikppo-mcp 范畴；属于客户端本体的能力**不要**做成 MCP 工具
-- tools 层只做参数接收与工具注册，业务逻辑放在 services 层
+- tools 层只做参数接收与工具注册，业务逻辑放在 services 层，数据访问放在 storage 后端
 - 数据模型统一使用 Pydantic v2
-- 数据库操作使用 aiosqlite 异步访问
+- 数据库用 asyncpg 直接写参数化 SQL，不用 ORM；新表用真实类型（DATE/TIME/TIMESTAMPTZ）+ created_at/updated_at 审计列；schema 变更同步到 `storage/postgres.py` 的 `SCHEMA` 并重跑 `scripts/init-db.py`
+- 依赖以 `uv.lock` 为准（镜像内 `uv sync --frozen`）；增删依赖后必须 `uv lock` 并提交 lock 文件
 - 所有 ID 使用 UUID v4 字符串
 - 时间戳统一使用毫秒级整数
 - 日期格式 `YYYY-MM-DD`，时间格式 `HH:mm`
@@ -117,10 +137,10 @@ pikppo-mcp/
 推荐使用脚本：
 
 ```bash
-./start.sh                  # streamable-http @ 127.0.0.1:8000
-./start.sh --inspect        # 同时启动 MCP Inspector 并预填连接参数
-./start.sh --host 0.0.0.0   # 监听全网卡（供 Android 模拟器 10.0.2.2 / 局域网真机访问）
-./start.sh --transport sse  # 切换传输协议（stdio | sse | streamable-http）
+scripts/start.sh                  # streamable-http @ 127.0.0.1:8000
+scripts/start.sh --inspect        # 同时启动 MCP Inspector 并预填连接参数
+scripts/start.sh --host 0.0.0.0   # 监听全网卡（供 Android 模拟器 10.0.2.2 / 局域网真机访问）
+scripts/start.sh --transport sse  # 切换传输协议（stdio | sse | streamable-http）
 ```
 
 或直接：
@@ -133,8 +153,28 @@ python -m app                # 默认 streamable-http :8000
 服务端已配置 Host 白名单（含 `127.0.0.1` / `localhost` / `10.0.2.2`），如需追加局域网地址：
 
 ```bash
-MCP_ALLOWED_HOSTS="192.168.1.10:8000" ./start.sh --host 0.0.0.0
+MCP_ALLOWED_HOSTS="192.168.1.10:8000" scripts/start.sh --host 0.0.0.0
 ```
+
+## 部署（Cloud Run + domain mapping）
+
+```bash
+python scripts/init-db.py              # 首次部署前建表（幂等；建表不在服务运行时路径）
+bash scripts/deploy-gcp.sh             # 构建镜像 + 部署 + 绑定域名（默认）
+bash scripts/deploy-gcp.sh --no-build  # 跳过构建，复用已有镜像
+DOMAIN=mcp.example.com bash scripts/deploy-gcp.sh  # 自定义域名
+```
+
+架构：`mcp.pikppo.com`（CNAME → `ghs.googlehosted.com`）→ Cloud Run domain mapping → Cloud Run（0→N 自动扩缩，ingress=all，公网入口）。无 LB —— Cloud Run 端点天然稳定，不存在 GCE 那种「重启换 IP」问题，无需 LB 提供固定 IP；省掉 LB 月费。
+
+要点：
+- GCP 项目 `pikppo`，区域 `asia-southeast1`（与 Neon ap-southeast-1 同城）
+- 脚本幂等可重复执行；secrets（`DB_URL`、`MCP_AUTH_TOKEN`）走 Secret Manager
+- 服务端 `stateless_http=True`：会话不落实例内存，多实例扩容安全——**不要改回有状态模式**
+- 连接池是 storage 层惰性单例；**不要给 FastMCP 传 lifespan 管理池**（stateless 模式下 lifespan 每请求执行，会引发并发关池竞态）；建表只走 `scripts/init-db.py`，不在运行时
+- ingress=all：公网可直达，安全完全依赖应用层 `MCP_AUTH_TOKEN`（fail-closed，token 缺失拒绝启动）；公网部署务必设置该 token
+- domain mapping 走 `gcloud beta run domain-mappings`，托管证书由其自动签发/续期；首次部署后按脚本输出的 DNS 记录（多为 CNAME → `ghs.googlehosted.com`）配置，DNS 生效后约 15-60 分钟证书转 ACTIVE
+- 历史：曾计划复用 dubora 的全球 HTTPS LB（dubora 是 GCE，靠 LB 拿固定 IP 绑域名）；dubora 已退出，pikppo-mcp 改用 domain mapping 独立部署
 
 ## 客户端配置
 
