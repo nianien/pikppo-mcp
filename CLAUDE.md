@@ -47,12 +47,12 @@ pikppo-mcp/
 │   └── cloudbuild.yaml          # Cloud Build 构建配置
 ├── .env                         # DB_URL 等敏感配置（git 忽略）
 ├── docs/
-│   └── db-decision.md           # 数据库选型决策（Neon Postgres）
+│   └── technical-design.md      # 技术方案（架构 / 选型 / 安全 / 部署）
 ├── src/
 │   └── app/
 │       ├── __init__.py          # 加载 .env
 │       ├── __main__.py          # python -m app 入口（读 $PORT，挂认证中间件）
-│       ├── server.py            # FastMCP 实例、lifespan、Host 白名单
+│       ├── server.py            # FastMCP 实例（stateless_http）、Host 白名单 / DNS rebinding 防护
 │       ├── auth.py              # Bearer token 认证中间件（MCP_AUTH_TOKEN）
 │       ├── storage/             # 数据访问层
 │       │   ├── __init__.py
@@ -128,8 +128,8 @@ pikppo-mcp/
 - 数据库用 asyncpg 直接写参数化 SQL，不用 ORM；新表用真实类型（DATE/TIME/TIMESTAMPTZ）+ created_at/updated_at 审计列；schema 变更同步到 `storage/postgres.py` 的 `SCHEMA` 并重跑 `scripts/init-db.py`
 - 依赖以 `uv.lock` 为准（镜像内 `uv sync --frozen`）；增删依赖后必须 `uv lock` 并提交 lock 文件
 - 所有 ID 使用 UUID v4 字符串
-- 时间戳统一使用毫秒级整数
-- 日期格式 `YYYY-MM-DD`，时间格式 `HH:mm`
+- 对外契约里日期/时间一律用字符串：日期 `YYYY-MM-DD`、时间 `HH:mm`；与 PG 真实 DATE/TIME 类型的互转收在 storage 后端内部，模型层不感知
+- 审计列 `created_at` / `updated_at`（`TIMESTAMPTZ`）由数据库维护，不暴露到 Pydantic 模型与工具契约
 - 工具的 docstring 即 LLM 看到的工具描述，需清晰准确
 
 ## 启动方式
@@ -165,16 +165,17 @@ bash scripts/deploy-gcp.sh --no-build  # 跳过构建，复用已有镜像
 DOMAIN=mcp.example.com bash scripts/deploy-gcp.sh  # 自定义域名
 ```
 
-架构：`mcp.pikppo.com`（CNAME → `ghs.googlehosted.com`）→ Cloud Run domain mapping → Cloud Run（0→N 自动扩缩，ingress=all，公网入口）。无 LB —— Cloud Run 端点天然稳定，不存在 GCE 那种「重启换 IP」问题，无需 LB 提供固定 IP；省掉 LB 月费。
+架构：`mcp.pikppo.com`（CNAME → `ghs.googlehosted.com`）→ Cloud Run domain mapping → Cloud Run（0→N 自动扩缩，公网入口 ingress=all）。无需 Load Balancer：Cloud Run 端点稳定，域名直接由 domain mapping 绑定、托管证书自动签发，零额外固定费用。
 
 要点：
 - GCP 项目 `pikppo`，区域 `asia-southeast1`（与 Neon ap-southeast-1 同城）
-- 脚本幂等可重复执行；secrets（`DB_URL`、`MCP_AUTH_TOKEN`）走 Secret Manager
-- 服务端 `stateless_http=True`：会话不落实例内存，多实例扩容安全——**不要改回有状态模式**
-- 连接池是 storage 层惰性单例；**不要给 FastMCP 传 lifespan 管理池**（stateless 模式下 lifespan 每请求执行，会引发并发关池竞态）；建表只走 `scripts/init-db.py`，不在运行时
-- ingress=all：公网可直达，安全完全依赖应用层 `MCP_AUTH_TOKEN`（fail-closed，token 缺失拒绝启动）；公网部署务必设置该 token
-- domain mapping 走 `gcloud beta run domain-mappings`，托管证书由其自动签发/续期；首次部署后按脚本输出的 DNS 记录（多为 CNAME → `ghs.googlehosted.com`）配置，DNS 生效后约 15-60 分钟证书转 ACTIVE
-- 历史：曾计划复用 dubora 的全球 HTTPS LB（dubora 是 GCE，靠 LB 拿固定 IP 绑域名）；dubora 已退出，pikppo-mcp 改用 domain mapping 独立部署
+- 脚本幂等可重复执行；secrets（`DB_URL`、`MCP_AUTH_TOKEN`）走 Secret Manager，运行身份用专用最小权限 SA `pikppo-mcp@pikppo`（仅两个 secret 的资源级读权限）
+- 服务端 `stateless_http=True`：会话不落实例内存，请求可落任意实例，多实例扩容安全
+- 连接池是 storage 层惰性进程级单例，自管理生命周期；**不要给 FastMCP 传 lifespan 管理池**（stateless 模式下 lifespan 每请求执行，会引发并发关池竞态）；建表只走 `scripts/init-db.py`，不在请求路径
+- ingress=all 公网可直达，安全完全依赖应用层 `MCP_AUTH_TOKEN`（fail-closed：`MCP_ALLOWED_HOSTS=*` 关闭 Host 白名单时 token 缺失则拒绝启动）；公网部署务必设置该 token
+- 自定义域名经反代到达，Host 头为 `mcp.pikppo.com`，故云端部署设 `MCP_ALLOWED_HOSTS=*` 关闭 DNS rebinding 防护（由 token 兜底）
+- domain mapping 走 `gcloud beta run domain-mappings`，托管证书自动签发/续期；首次部署后按脚本输出的 DNS 记录（CNAME → `ghs.googlehosted.com`）配置，DNS 生效后约 15-60 分钟证书转 ACTIVE
+- 域名首次使用前需在执行部署的 Google 账户下完成所有权验证（`gcloud domains verify pikppo.com`，域名级验证覆盖全部子域）
 
 ## 客户端配置
 
