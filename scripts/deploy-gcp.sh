@@ -28,12 +28,25 @@ SECRET_TOKEN="pikppo-auth-token"
 log()  { echo "==> $*"; }
 fail() { echo "ERROR: $*" >&2; exit 1; }
 
+usage() {
+  cat <<'EOF'
+部署 pikppo-mcp 到 Cloud Run，并用 Cloud Run domain mapping 绑定自定义域名（无 LB）
+
+Usage: bash scripts/deploy-gcp.sh [--no-build]
+  无参数      Cloud Build 构建新镜像 + 部署（默认）
+  --no-build  跳过构建，复用已有镜像重新部署
+
+前置: gcloud 已登录；.env 中已配置 DB_URL（Neon 连接串）
+环境变量覆盖: PROJECT_ID / REGION / DOMAIN
+EOF
+}
+
 # ── 参数 ──────────────────────────────────────────────────
 BUILD=true
 for arg in "$@"; do
   case "$arg" in
     --no-build) BUILD=false ;;
-    --help|-h)  sed -n '2,10p' "$0"; exit 0 ;;
+    --help|-h)  usage; exit 0 ;;
     *)          fail "Unknown argument: $arg" ;;
   esac
 done
@@ -130,6 +143,7 @@ fi
 # ── 输出 ─────────────────────────────────────────────────
 echo ""
 log "部署完成"
+echo "    首次部署: 若尚未建表，执行一次 → python scripts/init-db.py（幂等，连 .env 的 DB_URL）"
 echo "    DNS:      为 $DOMAIN 添加 Google 给出的记录（多数为 CNAME → ghs.googlehosted.com）："
 gcloud beta run domain-mappings describe --domain "$DOMAIN" \
   --region "$REGION" --project "$PROJECT" \

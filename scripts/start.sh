@@ -11,6 +11,19 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
+usage() {
+  cat <<'EOF'
+pikppo-mcp 一键启动脚本
+用法:
+  scripts/start.sh                  # 启动 server (streamable-http, 默认 :8000)
+  scripts/start.sh --inspect        # 同时启动 MCP Inspector 并自动预填连接参数
+  scripts/start.sh --transport sse  # 切换 transport (stdio | sse | streamable-http)
+  scripts/start.sh --host 0.0.0.0   # 监听全网卡（供模拟器 / 局域网访问）
+  scripts/start.sh --port 9000      # 自定义端口
+  scripts/start.sh --no-open        # --inspect 时不自动打开浏览器
+EOF
+}
+
 TRANSPORT="streamable-http"
 HOST="127.0.0.1"
 PORT="8000"
@@ -25,14 +38,15 @@ while [[ $# -gt 0 ]]; do
     --host) HOST="$2"; shift 2 ;;
     --port) PORT="$2"; shift 2 ;;
     -h|--help)
-      sed -n '2,8p' "$0"; exit 0 ;;
+      usage; exit 0 ;;
     *) echo "未知参数: $1" >&2; exit 1 ;;
   esac
 done
 
 PYTHON="${PYTHON:-python3}"
 
-if ! "$PYTHON" -c "import mcp, asyncpg" 2>/dev/null; then
+# 检测启动期直接导入的依赖（dotenv 在 app 加载即用，uvicorn 在 HTTP 形态用）
+if ! "$PYTHON" -c "import mcp, asyncpg, dotenv, uvicorn" 2>/dev/null; then
   echo "[setup] 安装依赖..."
   "$PYTHON" -m pip install -e ".[dev]"
 fi
