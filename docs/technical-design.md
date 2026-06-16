@@ -133,7 +133,7 @@ mcp.pikppo.com（CNAME → ghs.googlehosted.com）
 
 当前已实现：
 - **日程管理（calendar）**——`list / get / create / update / delete` 五个工具，持久化到 Postgres。
-- **汇率查询（exchange）**——`convert_currency`（按实时汇率换算金额）/ `list_exchange_rates`（某基准币种的汇率表）；数据源 open.er-api.com（免费无需 key），实时只读不落库，进程内 TTL 缓存到数据源声明的下次更新时刻（同一对话内同 base 多次换算只打一次外部 API；stateless 冷启动丢缓存则回落到 API 调用）。
+- **汇率查询（exchange）**——`convert_currency`（按实时汇率换算金额）/ `list_exchange_rates`（某基准币种的汇率表）/ `get_exchange_trend`（日期区间内两币种每日走势 + 起止/最高/最低/涨跌幅统计）。只读不落库，双数据源：实时汇率用 open.er-api.com（免费无需 key），进程内 TTL 缓存到数据源声明的下次更新时刻（同一对话内同 base 多次换算只打一次外部 API；stateless 冷启动丢缓存则回落到 API 调用）；历史走势用 Frankfurter（免费无需 key，ECB 数据，仅工作日），按区间实时拉取不缓存。service 层封装数据源差异，工具契约一致。
 
 按产品「应用市场」清单逐步引入：邮件、翻译、待办清单、联网搜索、地图导航、天气。每类工具是 `tools/` + `services/`（+ 需持久化时加 `models/` 与 storage 表）的一个新模块，复用同一套认证、传输、存储与部署基建，互不干扰。
 

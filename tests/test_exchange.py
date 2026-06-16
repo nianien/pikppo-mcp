@@ -3,7 +3,7 @@ import time
 import pytest
 
 from app.services import exchange_service
-from app.tools.exchange import convert_currency, list_exchange_rates
+from app.tools.exchange import convert_currency, get_exchange_trend, list_exchange_rates
 
 _FAKE = {
     "result": "success",
@@ -51,6 +51,79 @@ async def test_list_rates_returns_table(fake_api):
 async def test_invalid_base_raises(fake_api):
     with pytest.raises(ValueError):
         await list_exchange_rates(base="ZZZ")
+
+
+_FAKE_TREND = {
+    "amount": 1.0,
+    "base": "USD",
+    "start_date": "2026-06-08",
+    "end_date": "2026-06-12",
+    "rates": {
+        "2026-06-08": {"CNY": 6.80},
+        "2026-06-09": {"CNY": 6.75},
+        "2026-06-10": {"CNY": 6.90},
+        "2026-06-12": {"CNY": 6.85},
+    },
+}
+
+
+@pytest.fixture
+def fake_trend_api(monkeypatch):
+    class _FakeResp:
+        def raise_for_status(self): pass
+        def json(self): return _FAKE_TREND
+
+    class _FakeClient:
+        def __init__(self, *a, **k): pass
+        async def __aenter__(self): return self
+        async def __aexit__(self, *a): return False
+        async def get(self, url, params=None): return _FakeResp()
+
+    monkeypatch.setattr(exchange_service.httpx, "AsyncClient", _FakeClient)
+
+
+async def test_trend_series_and_stats(fake_trend_api):
+    r = await get_exchange_trend(
+        from_currency="usd", to_currency="cny",
+        start_date="2026-06-08", end_date="2026-06-12",
+    )
+    assert r["from_currency"] == "USD"
+    assert [p["date"] for p in r["points"]] == [
+        "2026-06-08", "2026-06-09", "2026-06-10", "2026-06-12",
+    ]
+    assert r["start_rate"] == 6.80
+    assert r["end_rate"] == 6.85
+    assert r["min_rate"] == 6.75
+    assert r["max_rate"] == 6.90
+    # (6.85 - 6.80) / 6.80 * 100 = 0.735... → 0.74
+    assert r["change_pct"] == 0.74
+
+
+async def test_trend_rejects_inverted_range(fake_trend_api):
+    with pytest.raises(ValueError):
+        await get_exchange_trend(
+            from_currency="USD", to_currency="CNY",
+            start_date="2026-06-12", end_date="2026-06-08",
+        )
+
+
+async def test_trend_empty_rates_raises(monkeypatch):
+    class _FakeResp:
+        def raise_for_status(self): pass
+        def json(self): return {"base": "USD", "rates": {}}
+
+    class _FakeClient:
+        def __init__(self, *a, **k): pass
+        async def __aenter__(self): return self
+        async def __aexit__(self, *a): return False
+        async def get(self, url, params=None): return _FakeResp()
+
+    monkeypatch.setattr(exchange_service.httpx, "AsyncClient", _FakeClient)
+    with pytest.raises(ValueError):
+        await get_exchange_trend(
+            from_currency="USD", to_currency="CNY",
+            start_date="2026-06-08", end_date="2026-06-12",
+        )
 
 
 async def test_fetch_caches_until_next_update(monkeypatch):

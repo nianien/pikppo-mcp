@@ -99,12 +99,13 @@ pikppo-mcp/
 
 ### 汇率查询（exchange）
 
-实时只读，数据源 open.er-api.com（免费无需 key），进程内 TTL 缓存到数据源声明的下次更新时刻；不落库。
+只读不落库，双数据源：实时汇率用 open.er-api.com（免费无需 key，进程内 TTL 缓存到下次更新时刻）；历史走势用 Frankfurter（免费无需 key，ECB 数据，仅工作日）。
 
 | 工具 | 说明 |
 |------|------|
 | `convert_currency` | 按实时汇率换算金额（from / to / amount，直接返回换算结果） |
 | `list_exchange_rates` | 查询某基准币种对一篮子货币的汇率表 |
+| `get_exchange_trend` | 查询日期区间内两币种每日汇率走势，含起止值、最高/最低、涨跌幅 |
 
 ### 规划中
 
