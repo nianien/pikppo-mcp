@@ -131,6 +131,8 @@ mcp.pikppo.com（CNAME → ghs.googlehosted.com）
 
 ## 7. 扩展路线
 
+当前已实现：**日程管理（calendar）**——`list / get / create / update / delete` 五个工具。
+
 按产品「应用市场」清单逐步引入：邮件、翻译、待办清单、联网搜索、地图导航、天气。每类工具是 `tools/` + `services/` + `models/` 的一个新模块，复用同一套认证、传输、存储与部署基建，互不干扰。
 
 ## 8. 刻意不做的事
@@ -139,7 +141,6 @@ mcp.pikppo.com（CNAME → ghs.googlehosted.com）
 - ❌ 预建 `user_id` 多用户字段——确定做多用户时再加
 - ❌ 为 "NoSQL feel" 把数据塞 JSONB 反范式化——该建表建表，JSONB 留给真正的半结构化字段
 - ❌ pgvector 现在开启——等接入记忆 embedding 检索时再 `CREATE EXTENSION vector;`（Neon first-class 支持，路径是通的）
-- ❌ 把 app 内在能力（记忆/角色/群组/设置）做成 MCP 工具——它们归客户端本地
 
 ## 运行时注意
 
