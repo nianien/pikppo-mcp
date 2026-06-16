@@ -5,7 +5,8 @@ description = "pikppo 私人管家 MCP 服务"
 requires-python = ">=3.11"
 dependencies = [
     "mcp>=1.0.0",
-    "aiosqlite>=0.20.0",
+    "asyncpg>=0.30",
+    "python-dotenv>=1.0",
 ]
 
 [project.optional-dependencies]
@@ -23,4 +24,7 @@ packages = ["src/app"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+# asyncpg + Python 3.14 在同进程多 event loop 下 SSL 连接会挂，测试统一跑在 session 级 loop
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
 testpaths = ["tests"]

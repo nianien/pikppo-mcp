@@ -1,0 +1,16 @@
+# Cloud Build 上传上下文白名单外的全部排除（显式声明，不依赖 .gitignore 隐式转换）
+.git
+.gitignore
+.gcloudignore
+.venv
+.env
+.env.*
+tests
+docs
+scripts
+__pycache__
+*.pyc
+.pytest_cache
+*.egg-info
+data
+*.db
