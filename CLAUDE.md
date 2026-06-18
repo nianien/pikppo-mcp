@@ -1,6 +1,6 @@
 # pikppo-mcp
 
-pikppo 的 **外部工具** MCP 服务，通过 MCP 协议向 pikppo Flutter 客户端及任意 MCP 兼容客户端暴露**外挂能力**，供 LLM 调用以操作真实世界的服务（日程、邮件、翻译、地图、天气……）。
+pikppo 的 **外部工具** MCP 服务，通过 MCP 协议向 pikppo Flutter 客户端及任意 MCP 兼容客户端暴露**外挂能力**，供 LLM 调用以操作真实世界的服务（汇率、邮件、翻译、地图、天气……）。
 
 ## 项目定位与边界
 
@@ -19,17 +19,20 @@ pikppo 的 **外部工具** MCP 服务，通过 MCP 协议向 pikppo Flutter 客
 | 记忆（Memory）管理 | pikppo 客户端本地 | 设计原则「记忆归用户所有」，本地存储默认；远程同步由客户端自行实现 |
 | 用户设置 / 用户画像 | pikppo 客户端本地 | 配置由 UI 维护；画像由客户端从对话归纳 |
 | 对话 / 消息历史 | pikppo 客户端本地 | 隐私边界、上下文构建由客户端负责 |
+| 个人领域数据（日历 / 笔记 / 待办 / 联系人…） | pikppo 客户端本地 | local-first：真相源在本地个人数据存储，跨设备同步由该存储层统一负责（加密 blob / CRDT / 零知识服务端），不为每个领域在服务端各开一套 CRUD |
 
 判断一个能力是否归 pikppo-mcp：
-- **是不是 LLM 该调用的外部操作？**（写日历、发邮件、查天气）→ 是
-- **是不是用户在 UI 里操作的本地数据？**（建角色、改设置）→ 否
+- **是不是 LLM 该调用的外部操作？**（发邮件、查天气、查汇率——访问第三方系统、跨用户共享、需服务端算力或密钥）→ 是
+- **是不是用户的个人领域数据 / UI 本地操作？**（日历、笔记、建角色、改设置）→ 否
+
+> 注意「LLM 从对话创建日程」这类价值仍然保留，但落点是「写入客户端本地个人数据存储」，**不是**服务端 MCP 工具。能力归属看的是这个外部操作的实现该挂在哪一层，而非「该不该让 LLM 调」。新领域（任务、习惯、联系人）默认不上服务端，除非它本质上是外部操作。
 
 ## 技术栈
 
 - **语言**: Python 3.11+
 - **协议**: MCP（Model Context Protocol）
 - **框架**: mcp Python SDK（FastMCP）
-- **数据库**: Neon Postgres（serverless，asyncpg 异步访问）— 仅用于外部工具自身需要持久化的数据（如日历事件）；连接串放 `.env` 的 `DB_URL`，测试用同实例下的独立 `pikppo_test` 库
+- **数据库**: Neon Postgres（serverless，asyncpg 异步访问）— 当前作为**休眠的中性持久化框架**，无任何领域表；连接池/DSN 处理/迁移机制已就位，仅当出现真正需要服务端落库的外部工具时才挂表启用（个人领域数据归客户端本地存储，不在此落库）；连接串放 `.env` 的 `DB_URL`
 - **数据验证**: Pydantic v2
 
 ## 项目结构
@@ -42,7 +45,7 @@ pikppo-mcp/
 ├── Dockerfile                   # 云端部署镜像
 ├── scripts/
 │   ├── start.sh                 # 一键启动脚本
-│   ├── init-db.py               # 初始化数据库 schema（部署前对目标库执行一次，幂等）
+│   ├── init-db.py               # 迁移机制（幂等；当前 SCHEMA 为空，空操作）
 │   ├── deploy-gcp.sh            # 一键部署：Cloud Build → Cloud Run → domain mapping 绑定域名
 │   └── cloudbuild.yaml          # Cloud Build 构建配置
 ├── .env                         # DB_URL 等敏感配置（git 忽略）
@@ -54,25 +57,21 @@ pikppo-mcp/
 │       ├── __main__.py          # python -m app 入口（读 $PORT，挂认证中间件）
 │       ├── server.py            # FastMCP 实例（stateless_http）、Host 白名单 / DNS rebinding 防护
 │       ├── auth.py              # Bearer token 认证中间件（MCP_AUTH_TOKEN）
-│       ├── storage/             # 数据访问层
+│       ├── storage/             # 中性持久化框架（无领域语义；连接池+DSN+迁移机制）
 │       │   ├── __init__.py
-│       │   └── postgres.py      # Neon Postgres（asyncpg 连接池）
+│       │   └── postgres.py      # Neon Postgres（asyncpg 连接池；SCHEMA 当前为空）
 │       ├── models/              # Pydantic 数据模型（仅外部工具相关）
 │       │   ├── __init__.py
-│       │   ├── calendar_event.py
 │       │   └── exchange_rate.py
 │       ├── tools/               # MCP 工具定义（按工具拆分）
 │       │   ├── __init__.py
-│       │   ├── calendar.py
 │       │   └── exchange.py
-│       └── services/            # 业务逻辑层（日历委托 storage；汇率直连外部 API）
+│       └── services/            # 业务逻辑层（汇率直连外部 API）
 │           ├── __init__.py
-│           ├── calendar_service.py
 │           └── exchange_service.py
 └── tests/
     ├── __init__.py
-    ├── conftest.py              # 测试连同实例下的 pikppo_test 库，每测试 TRUNCATE
-    ├── test_calendar.py
+    ├── conftest.py              # 仅加载 .env
     └── test_exchange.py         # mock 数据源，不依赖外部网络
 ```
 
@@ -80,22 +79,14 @@ pikppo-mcp/
 
 | 变量 | 说明 |
 |------|------|
-| `DB_URL` | Neon Postgres 连接串（放 `.env`，必需）；`channel_binding` 参数会被自动剥离（asyncpg 不支持） |
+| `DB_URL` | Neon Postgres 连接串（放 `.env`）；持久化框架的接入点，当前无领域表故运行时不连库，挂表后才需要；`channel_binding` 参数会被自动剥离（asyncpg 不支持） |
 | `MCP_AUTH_TOKEN` | 设置后启用 Bearer token 认证（HTTP 传输），公网部署必须设置 |
 | `MCP_ALLOWED_HOSTS` | 追加 Host 白名单（逗号分隔）；设为 `*` 关闭 DNS rebinding 防护（云端反代场景，需配合 token 认证） |
 | `PORT` | HTTP 监听端口（Cloud Run 等平台注入），默认 8000 |
 
 ## MCP 工具清单
 
-### 日程管理（calendar）
-
-| 工具 | 说明 |
-|------|------|
-| `list_calendar_events` | 查询事件（支持日期范围筛选） |
-| `get_calendar_event` | 获取单个事件详情 |
-| `create_calendar_event` | 创建事件 |
-| `update_calendar_event` | 更新事件 |
-| `delete_calendar_event` | 删除事件 |
+每个工具用 `@mcp.tool(name=, title=, description=)` 显式声明三字段；参数的格式约束用 `Annotated[..., Field(description=...)]` 写在签名上，进入 inputSchema 的逐参数描述（此版本 SDK 不解析 docstring `Args:`，故不靠 docstring 传参数提示）。
 
 ### 汇率查询（exchange）
 
@@ -121,18 +112,7 @@ pikppo-mcp/
 
 ## 数据模型
 
-仅外部工具自身需要持久化的数据。
-
-### CalendarEvent（日历事件）
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| id | str | UUID v4 |
-| title | str | 事件标题 |
-| date | str | 日期 YYYY-MM-DD |
-| time | str? | 时间 HH:mm |
-| end_time | str? | 结束时间 HH:mm |
-| description | str? | 描述 |
-| reminder_minutes | int? | 提前提醒分钟数 |
+当前无需服务端持久化的数据模型（个人领域数据归客户端本地存储）。汇率工具只读不落库，其响应模型见 `models/exchange_rate.py`。未来出现需服务端落库的外部工具时，在此登记其持久化模型。
 
 ## 开发规范
 
@@ -173,7 +153,7 @@ MCP_ALLOWED_HOSTS="192.168.1.10:8000" scripts/start.sh --host 0.0.0.0
 ## 部署（Cloud Run + domain mapping）
 
 ```bash
-python scripts/init-db.py              # 首次部署前建表（幂等；建表不在服务运行时路径）
+python scripts/init-db.py              # 迁移机制（幂等；当前 SCHEMA 为空即空操作，挂表后才建表）
 bash scripts/deploy-gcp.sh             # 构建镜像 + 部署 + 绑定域名（默认）
 bash scripts/deploy-gcp.sh --no-build  # 跳过构建，复用已有镜像
 DOMAIN=mcp.example.com bash scripts/deploy-gcp.sh  # 自定义域名
