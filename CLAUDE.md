@@ -62,17 +62,21 @@ pikppo-mcp/
 │       │   └── postgres.py      # Neon Postgres（asyncpg 连接池；SCHEMA 当前为空）
 │       ├── models/              # Pydantic 数据模型（仅外部工具相关）
 │       │   ├── __init__.py
-│       │   └── exchange_rate.py
+│       │   ├── exchange_rate.py
+│       │   └── stock.py
 │       ├── tools/               # MCP 工具定义（按工具拆分）
 │       │   ├── __init__.py
-│       │   └── exchange.py
-│       └── services/            # 业务逻辑层（汇率直连外部 API）
+│       │   ├── exchange.py
+│       │   └── stock.py
+│       └── services/            # 业务逻辑层（直连外部 API，不落库）
 │           ├── __init__.py
-│           └── exchange_service.py
+│           ├── exchange_service.py
+│           └── stock_service.py
 └── tests/
     ├── __init__.py
     ├── conftest.py              # 仅加载 .env
-    └── test_exchange.py         # mock 数据源，不依赖外部网络
+    ├── test_exchange.py         # mock 数据源，不依赖外部网络
+    └── test_stock.py            # mock 东财，不依赖外部网络
 ```
 
 ## 环境变量
@@ -87,6 +91,22 @@ pikppo-mcp/
 ## MCP 工具清单
 
 每个工具用 `@mcp.tool(name=, title=, description=)` 显式声明三字段；参数的格式约束用 `Annotated[..., Field(description=...)]` 写在签名上，进入 inputSchema 的逐参数描述（此版本 SDK 不解析 docstring `Args:`，故不靠 docstring 传参数提示）。
+
+### 股票行情（stock）
+
+只读不落库，数据源东方财富（免费无需 key）。一套 `secid={market}.{code}` 统一覆盖 A股/港股/美股；`symbol` 接受代码/名称/美股 ticker，内部经 suggest 接口解析为 secid 并自动判市场。实时快照价格按返回的 `f59` 小数位缩放、比率字段恒 ÷100；K 线接口返回已是小数串。
+
+| 工具 | 说明 | 市场 |
+|------|------|------|
+| `get_stock_quote` | 实时行情快照（最新价/涨跌幅/开高低收/量额/换手/PE/PB/市值） | A/H/美 |
+| `get_stock_history` | 历史 K 线 + 区间统计（涨跌幅、最高/最低、5/10/20 日均线、最大回撤） | A/H/美 |
+| `get_stock_fundamentals` | 主要财务指标（按报告期：营收/净利及同比、EPS、毛利率/净利率；A/H 另含 ROE、每股净资产、资产负债率） | A/H/美 |
+| `get_stock_announcements` | 最新公告列表（标题/分类/日期），了解公司事件 | 仅 A 股 |
+| `get_stock_dividends` | 分红送配历史（方案/进度/每 10 股税前现金/除权日） | 仅 A 股 |
+
+基本面按市场分发（`get_fundamentals` 依 secid 市场前缀）：A股 `RPT_F10_FINANCE_MAINFINADATA`、港股 `RPT_HKF10_FN_MAININDICATOR`（字段同等丰富）、美股 `RPT_USF10_FN_INCOME`（利润表长表取累计口径 dtc 001-004，营收/净利/EPS/毛利率/净利率；ROE/每股净资产/资产负债率需资产负债表，暂为 null）。公告/分红走东财公告中心与分红报表，仍仅 A 股，`_a_share_code` 守卫对非 A 股给清晰报错。
+
+> 规划中（按 `docs/future-tools.md`）：股票资金流/龙虎榜、港美股基本面、基金（净值/持仓/业绩，与股票分开实现）。
 
 ### 汇率查询（exchange）
 

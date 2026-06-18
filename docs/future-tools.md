@@ -47,6 +47,8 @@
   - 多用户隔离：此处才真正需要 `user_id` 维度（见 technical-design §9「确定做多用户时再加」）
 
 ### 📈 股票 / 基金查询与分析（stock_fund）
+> 进度：**股票行情 + 基本面(A/H/美) + A股公告/分红已实现**。`get_stock_quote`、`get_stock_history`（A/H/美，东财直连）；`get_stock_fundamentals` 按市场分发（A股 datacenter F10、港股 HKF10 主要指标、美股 USF10 利润表累计口径；美股 ROE/负债率需资产负债表暂缺）；`get_stock_announcements`、`get_stock_dividends` 仍仅 A股（非 A 股守卫报错）。三市场基本面统一走东财、无需第三方 key。待办：美股 ROE/负债率（接资产负债表）、港美股公告（披露易/SEC）、股票资金流/龙虎榜、基金（与股票分开实现）。MVP 刻意只用免费档，验证「诊股判断准不准」优先于数据全。
+
 - **归属**：✅ 外部操作（调第三方行情数据源）
 - **数据源候选**：
   - A 股/港股/基金：AkShare（Python 库，聚合东财/新浪/腾讯等多源，**免 key**，与本项目 Python 栈天然契合，首选）、天天基金（fund.eastmoney.com，非官方接口）、新浪/腾讯行情接口（免 key，非官方）

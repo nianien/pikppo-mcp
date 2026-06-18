@@ -19,7 +19,7 @@ _allow_any_host = "*" in _extra_hosts
 
 mcp = FastMCP(
     "pikppo",
-    instructions="pikppo 外部工具 MCP 服务，提供汇率等外部能力的工具调用",
+    instructions="pikppo 外部工具 MCP 服务，提供汇率、股票行情等外部能力的工具调用",
     # 无状态模式：会话不落实例内存，Cloud Run 多实例扩容时请求可落任意实例
     stateless_http=True,
     transport_security=TransportSecuritySettings(
@@ -31,3 +31,4 @@ mcp = FastMCP(
 
 # register tools
 import app.tools.exchange  # noqa: F401, E402
+import app.tools.stock  # noqa: F401, E402
