@@ -77,7 +77,7 @@ def _fmt_ts(ts) -> str:
 
 async def _resolve(symbol: str) -> tuple[str, str, str]:
     """代码/名称/美股 ticker → (secid, 名称, 市场标签)。市场判断由东财完成。"""
-    async with httpx.AsyncClient(timeout=_TIMEOUT, headers=_HEADERS) as client:
+    async with httpx.AsyncClient(timeout=_TIMEOUT, headers=_HEADERS, follow_redirects=True) as client:
         resp = await client.get(_SUGGEST, params={"input": symbol, "type": "14", "count": "8"})
     resp.raise_for_status()
     data = (resp.json().get("QuotationCodeTable") or {}).get("Data") or []
@@ -94,7 +94,7 @@ async def _resolve(symbol: str) -> tuple[str, str, str]:
 
 async def get_quote(symbol: str) -> StockQuote:
     secid, name, market = await _resolve(symbol)
-    async with httpx.AsyncClient(timeout=_TIMEOUT, headers=_HEADERS) as client:
+    async with httpx.AsyncClient(timeout=_TIMEOUT, headers=_HEADERS, follow_redirects=True) as client:
         resp = await client.get(_QUOTE, params={"secid": secid, "fields": _QUOTE_FIELDS})
     resp.raise_for_status()
     d = resp.json().get("data")
@@ -153,7 +153,7 @@ async def get_history(
         "beg": start_date.replace("-", ""), "end": end_date.replace("-", ""),
         "fields1": "f1,f2,f3", "fields2": _KLINE_FIELDS2, "lmt": "100000",
     }
-    async with httpx.AsyncClient(timeout=_TIMEOUT, headers=_HEADERS) as client:
+    async with httpx.AsyncClient(timeout=_TIMEOUT, headers=_HEADERS, follow_redirects=True) as client:
         resp = await client.get(_KLINE, params=params)
     resp.raise_for_status()
     data = resp.json().get("data") or {}
@@ -198,7 +198,7 @@ async def _datacenter(base: str, report: str, columns: str, filter_expr: str,
         "reportName": report, "columns": columns, "filter": filter_expr,
         "pageSize": str(page_size), "sortColumns": sort, "sortTypes": "-1",
     }
-    async with httpx.AsyncClient(timeout=_TIMEOUT, headers=_HEADERS) as client:
+    async with httpx.AsyncClient(timeout=_TIMEOUT, headers=_HEADERS, follow_redirects=True) as client:
         resp = await client.get(base, params=params)
     resp.raise_for_status()
     return ((resp.json().get("result") or {}).get("data")) or []
@@ -347,7 +347,7 @@ async def get_announcements(symbol: str, limit: int = 10) -> StockAnnouncements:
         "sr": "-1", "page_size": str(limit), "page_index": "1",
         "ann_type": "A", "stock_list": code,
     }
-    async with httpx.AsyncClient(timeout=_TIMEOUT, headers=_HEADERS) as client:
+    async with httpx.AsyncClient(timeout=_TIMEOUT, headers=_HEADERS, follow_redirects=True) as client:
         resp = await client.get(_ANNOUNCE, params=params)
     resp.raise_for_status()
     items = ((resp.json().get("data") or {}).get("list")) or []
