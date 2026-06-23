@@ -36,7 +36,7 @@ _PERIOD = {
     "1min": "1", "5min": "5", "15min": "15", "30min": "30", "60min": "60",
 }
 _ADJUST = {"none": "0", "qfq": "1", "hfq": "2"}
-_STOCK_CLASSIFY = {"AStock", "HKStock", "UsStock"}
+_STOCK_CLASSIFY = {"AStock", "HK", "UsStock"}  # 东财 Classify 实值：A股 AStock / 港股 HK / 美股 UsStock
 
 
 def _pct(v) -> float | None:
@@ -82,10 +82,13 @@ async def _resolve(symbol: str) -> tuple[str, str, str]:
     resp.raise_for_status()
     data = (resp.json().get("QuotationCodeTable") or {}).get("Data") or []
     stocks = [d for d in data if d.get("Classify") in _STOCK_CLASSIFY]
-    pick = stocks or data
-    if not pick:
+    pool = stocks or data
+    if not pool:
         raise ValueError(f"未找到标的: {symbol}")
-    d = pick[0]
+    # 裸代码可能跨市场撞号（如港股 00700 与深A 000700），精确代码匹配优先于东财默认排序
+    key = symbol.strip().upper()
+    exact = [d for d in pool if (d.get("Code") or "").upper() == key]
+    d = (exact or pool)[0]
     secid = d.get("QuoteID")
     if not secid or "." not in secid:
         raise ValueError(f"无法解析标的: {symbol}")

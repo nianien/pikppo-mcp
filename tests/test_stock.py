@@ -87,6 +87,13 @@ async def test_quote_zero_pe_becomes_null(monkeypatch):
     assert q["pe"] is None
 
 
+async def test_resolve_prefers_exact_code(monkeypatch):
+    monkeypatch.setattr(stock_service.httpx, "AsyncClient",
+                        _fake_client(suggest=_SUGGEST_AMBIG, quote=_QUOTE_A))
+    q = await get_stock_quote(symbol="00700")
+    assert q["market"] == "港股"  # 精确匹配选港股腾讯，而非排在前的深A 000700
+
+
 async def test_unknown_symbol_raises(monkeypatch):
     monkeypatch.setattr(stock_service.httpx, "AsyncClient",
                         _fake_client(suggest={"QuotationCodeTable": {"Data": []}}))
@@ -133,7 +140,15 @@ async def test_history_empty_raises(monkeypatch):
 
 _SUGGEST_HK = {"QuotationCodeTable": {"Data": [
     {"Code": "00700", "Name": "腾讯控股", "QuoteID": "116.00700",
-     "Classify": "HKStock", "SecurityTypeName": "港股"},
+     "Classify": "HK", "SecurityTypeName": "港股"},
+]}}
+
+# 裸代码撞号：深A 000700 排在前，港股 00700 应靠精确代码匹配胜出
+_SUGGEST_AMBIG = {"QuotationCodeTable": {"Data": [
+    {"Code": "000700", "Name": "模塑科技", "QuoteID": "0.000700",
+     "Classify": "AStock", "SecurityTypeName": "深A"},
+    {"Code": "00700", "Name": "腾讯控股", "QuoteID": "116.00700",
+     "Classify": "HK", "SecurityTypeName": "港股"},
 ]}}
 
 _SUGGEST_US = {"QuotationCodeTable": {"Data": [
