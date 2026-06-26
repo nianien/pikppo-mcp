@@ -2,8 +2,8 @@ import time
 
 import pytest
 
-from app.services import exchange_service
-from app.tools.exchange import convert_currency, get_exchange_trend, list_exchange_rates
+from pikppo.mcp.services import exchange_service
+from pikppo.mcp.tools.exchange import convert_currency, get_exchange_trend, list_exchange_rates
 
 _FAKE = {
     "result": "success",

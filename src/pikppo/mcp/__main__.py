@@ -2,7 +2,7 @@ import argparse
 import os
 import sys
 
-from app.server import mcp
+from pikppo.mcp.server import mcp
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--transport", choices=["stdio", "sse", "streamable-http"], default="streamable-http")
@@ -31,7 +31,7 @@ else:
 
     app = mcp.sse_app() if args.transport == "sse" else mcp.streamable_http_app()
     if token:
-        from app.auth import BearerAuthMiddleware
+        from pikppo.mcp.auth import BearerAuthMiddleware
 
         app = BearerAuthMiddleware(app, token)
     uvicorn.run(app, host=args.host, port=args.port, log_level=mcp.settings.log_level.lower())

@@ -67,7 +67,7 @@ url_encode() {
 
 if [[ "$INSPECT" -eq 1 ]]; then
   echo "[server] $TRANSPORT 启动于 $HOST:$PORT"
-  "$PYTHON" -m app --transport "$TRANSPORT" --host "$HOST" --port "$PORT" &
+  "$PYTHON" -m pikppo.mcp --transport "$TRANSPORT" --host "$HOST" --port "$PORT" &
   SERVER_PID=$!
 
   case "$TRANSPORT" in
@@ -135,5 +135,5 @@ pty.spawn(['npx', '-y', '@modelcontextprotocol/inspector'], read_cb)
 
   wait
 else
-  exec "$PYTHON" -m app --transport "$TRANSPORT" --host "$HOST" --port "$PORT"
+  exec "$PYTHON" -m pikppo.mcp --transport "$TRANSPORT" --host "$HOST" --port "$PORT"
 fi

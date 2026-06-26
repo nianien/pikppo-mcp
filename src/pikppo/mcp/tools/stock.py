@@ -2,8 +2,8 @@ from typing import Annotated
 
 from pydantic import Field
 
-from app.server import mcp
-from app.services import stock_service
+from pikppo.mcp.server import mcp
+from pikppo.mcp.services import stock_service
 
 _SYMBOL_DESC = "股票代码、名称或美股代码，自动识别市场，如 600519 / 贵州茅台 / 00700 / AAPL"
 

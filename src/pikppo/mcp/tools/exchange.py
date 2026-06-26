@@ -2,8 +2,8 @@ from typing import Annotated
 
 from pydantic import Field
 
-from app.server import mcp
-from app.services import exchange_service
+from pikppo.mcp.server import mcp
+from pikppo.mcp.services import exchange_service
 
 
 @mcp.tool(

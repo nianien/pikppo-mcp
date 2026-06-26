@@ -10,8 +10,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-import app  # noqa: F401  # 加载 .env
-from app.storage import backend
+import pikppo.mcp  # noqa: F401  # 加载 .env
+from pikppo.mcp.storage import backend
 
 
 async def main():

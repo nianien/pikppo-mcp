@@ -20,4 +20,4 @@ USER appuser
 
 EXPOSE 8000
 
-CMD ["python", "-m", "app", "--host", "0.0.0.0"]
+CMD ["python", "-m", "pikppo.mcp", "--host", "0.0.0.0"]

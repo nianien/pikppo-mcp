@@ -52,26 +52,27 @@ pikppo-mcp/
 ├── docs/
 │   └── technical-design.md      # 技术方案（架构 / 选型 / 安全 / 部署）
 ├── src/
-│   └── app/
-│       ├── __init__.py          # 加载 .env
-│       ├── __main__.py          # python -m app 入口（读 $PORT，挂认证中间件）
-│       ├── server.py            # FastMCP 实例（stateless_http）、Host 白名单 / DNS rebinding 防护
-│       ├── auth.py              # Bearer token 认证中间件（MCP_AUTH_TOKEN）
-│       ├── storage/             # 中性持久化框架（无领域语义；连接池+DSN+迁移机制）
-│       │   ├── __init__.py
-│       │   └── postgres.py      # Neon Postgres（asyncpg 连接池；SCHEMA 当前为空）
-│       ├── models/              # Pydantic 数据模型（仅外部工具相关）
-│       │   ├── __init__.py
-│       │   ├── exchange_rate.py
-│       │   └── stock.py
-│       ├── tools/               # MCP 工具定义（按工具拆分）
-│       │   ├── __init__.py
-│       │   ├── exchange.py
-│       │   └── stock.py
-│       └── services/            # 业务逻辑层（直连外部 API，不落库）
-│           ├── __init__.py
-│           ├── exchange_service.py
-│           └── stock_service.py
+│   └── pikppo/                  # PEP 420 命名空间包（无 __init__.py，跨 pikppo.* 子包共存不冲突）
+│       └── mcp/                 # 本仓库子包 pikppo.mcp
+│           ├── __init__.py          # 加载 .env
+│           ├── __main__.py          # python -m pikppo.mcp 入口（读 $PORT，挂认证中间件）
+│           ├── server.py            # FastMCP 实例（stateless_http）、Host 白名单 / DNS rebinding 防护
+│           ├── auth.py              # Bearer token 认证中间件（MCP_AUTH_TOKEN）
+│           ├── storage/             # 中性持久化框架（无领域语义；连接池+DSN+迁移机制）
+│           │   ├── __init__.py
+│           │   └── postgres.py      # Neon Postgres（asyncpg 连接池；SCHEMA 当前为空）
+│           ├── models/              # Pydantic 数据模型（仅外部工具相关）
+│           │   ├── __init__.py
+│           │   ├── exchange_rate.py
+│           │   └── stock.py
+│           ├── tools/               # MCP 工具定义（按工具拆分）
+│           │   ├── __init__.py
+│           │   ├── exchange.py
+│           │   └── stock.py
+│           └── services/            # 业务逻辑层（直连外部 API，不落库）
+│               ├── __init__.py
+│               ├── exchange_service.py
+│               └── stock_service.py
 └── tests/
     ├── __init__.py
     ├── conftest.py              # 仅加载 .env
@@ -161,7 +162,7 @@ scripts/start.sh --transport sse  # 切换传输协议（stdio | sse | streamabl
 
 ```bash
 pip install -e ".[dev]"
-python -m app                # 默认 streamable-http :8000
+python -m pikppo.mcp         # 默认 streamable-http :8000
 ```
 
 服务端已配置 Host 白名单（含 `127.0.0.1` / `localhost` / `10.0.2.2`），如需追加局域网地址：
@@ -207,7 +208,7 @@ DOMAIN=mcp.example.com bash scripts/deploy-gcp.sh  # 自定义域名
   "mcpServers": {
     "pikppo": {
       "command": "python",
-      "args": ["-m", "app", "--transport", "stdio"],
+      "args": ["-m", "pikppo.mcp", "--transport", "stdio"],
       "cwd": "/path/to/pikppo-mcp"
     }
   }

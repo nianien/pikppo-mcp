@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 
 import httpx
 
-from app.models.stock import (
+from pikppo.mcp.models.stock import (
     Announcement,
     DividendRecord,
     FinancialIndicator,

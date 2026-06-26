@@ -2,7 +2,7 @@ import time
 
 import httpx
 
-from app.models.exchange_rate import ConversionResult, RateTable, TrendPoint, TrendResult
+from pikppo.mcp.models.exchange_rate import ConversionResult, RateTable, TrendPoint, TrendResult
 
 # open.er-api.com：免费、无需 key，返回某基准币种对一篮子货币的汇率
 _API_BASE = "https://open.er-api.com/v6/latest"

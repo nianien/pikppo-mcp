@@ -1,7 +1,7 @@
 import pytest
 
-from app.services import stock_service
-from app.tools.stock import (
+from pikppo.mcp.services import stock_service
+from pikppo.mcp.tools.stock import (
     get_stock_announcements,
     get_stock_dividends,
     get_stock_fundamentals,

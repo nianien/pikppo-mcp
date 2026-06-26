@@ -30,5 +30,5 @@ mcp = FastMCP(
 )
 
 # register tools
-import app.tools.exchange  # noqa: F401, E402
-import app.tools.stock  # noqa: F401, E402
+import pikppo.mcp.tools.exchange  # noqa: F401, E402
+import pikppo.mcp.tools.stock  # noqa: F401, E402
